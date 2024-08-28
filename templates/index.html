@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route and Weather Information</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+        .alert {
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCZhL9Os-umPMEW9fF7y5TYsZ-tthc1Q7U&libraries=geometry"></script>
+    <script>
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 7,
+                center: { lat: 20.5937, lng: 78.9629 } // Center of India
+            });
+
+            document.getElementById('submit').addEventListener('click', () => {
+                const startLocation = document.getElementById('start_location').value;
+                const endLocation = document.getElementById('end_location').value;
+
+                fetch('/get_route', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `start_location=${startLocation}&end_location=${endLocation}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+
+                    const polyline = data.polyline;
+                    const weatherData = data.weather_data;
+
+                    // Decode polyline
+                    const decodedPath = google.maps.geometry.encoding.decodePath(polyline);
+
+                    // Draw the route
+                    const routePath = new google.maps.Polyline({
+                        path: decodedPath,
+                        geodesic: true,
+                        strokeColor: '#FF0000',
+                        strokeOpacity: 1.0,
+                        strokeWeight: 2
+                    });
+                    routePath.setMap(map);
+
+                    // Add weather information
+                    weatherData.forEach(city => {
+                        const weatherInfo = `Weather: ${city.weather}, Temp: ${city.temperature}°C`;
+
+                        const marker = new google.maps.Marker({
+                            position: { lat: parseFloat(city.lat), lng: parseFloat(city.lon) },
+                            map: map,
+                            title: weatherInfo
+                        });
+
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: weatherInfo
+                        });
+
+                        marker.addListener('click', () => {
+                            infoWindow.open(map, marker);
+                        });
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        }
+    </script>
+</head>
+<body onload="initMap()">
+    <div class="container">
+        <h1 class="text-center">Route and Weather Information</h1>
+        <form>
+            <div class="form-group">
+                <label for="start_location">Start Location:</label>
+                <input type="text" id="start_location" class="form-control" placeholder="Mumbai">
+            </div>
+            <div class="form-group">
+                <label for="end_location">End Location:</label>
+                <input type="text" id="end_location" class="form-control" placeholder="Goa">
+            </div>
+            <button type="button" id="submit" class="btn btn-primary">Get Route and Weather</button>
+        </form>
+        <div id="map"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
